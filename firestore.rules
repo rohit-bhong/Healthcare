@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User Rules
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.role == 'patient';
+      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.role == resource.data.role; // Cannot change role self-service
+      allow list: if isAdmin();
+    }
+
+    // Doctor Rules
+    match /doctors/{doctorId} {
+      allow read: if true; // Publicly viewable
+      allow write: if isAdmin();
+    }
+
+    // Appointment Rules
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.patientId || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.patientId == request.auth.uid;
+      allow update: if isSignedIn() && (request.auth.uid == resource.data.patientId || isAdmin());
+      allow delete: if isAdmin();
+      allow list: if isSignedIn(); // Client must filter by patientId or be admin
+    }
+
+    // Report Rules
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.patientId || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.patientId == request.auth.uid;
+      allow update: if isSignedIn() && (request.auth.uid == resource.data.patientId || isAdmin());
+      allow delete: if isAdmin();
+      allow list: if isSignedIn(); // Client must filter by patientId
+    }
+  }
+}

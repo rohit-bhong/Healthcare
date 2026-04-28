@@ -1,0 +1,12 @@
+{
+  "name": "HealPoint Hospital",
+  "description": "A comprehensive hospital management system featuring appointment booking, patient dashboards, and an admin panel, built with a modern green medical theme.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "Authentication",
+    "Database Management"
+  ]
+}
